@@ -2,6 +2,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { DataTableDemo } from "@/components/global/NotesList";
 import { ActionCenter } from "@/components/global/ActionCenter";
+import { useSignOut } from "react-firebase-hooks/auth";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { auth } from "@/providers/firebase-config";
+import { eventNames } from "process";
 
 type Props = {};
 
@@ -10,27 +15,66 @@ const HomePage = (props: Props) => {
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
 
+  const router = useRouter();
+
+  const [signout] = useSignOut(auth);
+
+  const signOut = async () => {
+    try {
+      const success = await signout();
+      toast.success("Successfully Signed Out");
+      router.push("/");
+    } catch (e) {
+      toast.error(`Firebase Error: ${e}`);
+    }
+  };
+
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
-      if (event.ctrlKey && event.key === "k") {
+      if (
+        (event.ctrlKey && event.key === "k") ||
+        (event.metaKey && event.key === "k")
+      ) {
         event.preventDefault();
-        setIsOpen(!isOpen); // Toggle isOpen directly here
+        setIsOpen((prevIsOpen) => !prevIsOpen); // Toggle using functional update
       }
-      if (isOpen) {
-        if (event.key === "Escape") {
-          event.preventDefault();
-          setIsOpen(false); // Toggle isOpen directly here
-        }
+      if (event.key === "Escape" && isOpen) {
+        event.preventDefault();
+        setIsOpen(false);
       }
     };
 
+    const handleQuitPress = (event: KeyboardEvent) => {
+      if (
+        (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "q") ||
+        (event.metaKey && event.shiftKey && event.key.toLowerCase() === "q")
+      ) {
+        // Correct condition
+        signOut();
+      }
+    };
+
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(e.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    // Attach event listeners
     document.addEventListener("keydown", handleKeyPress);
-    document.addEventListener("click", handleOutsideClick, true);
+    document.addEventListener("keydown", handleQuitPress); // Added quit press listener
+    document.addEventListener("mousedown", handleOutsideClick);
 
     return () => {
+      // Remove event listeners on cleanup
       document.removeEventListener("keydown", handleKeyPress);
+      document.removeEventListener("keydown", handleQuitPress); // Removed quit press listener
+      document.removeEventListener("mousedown", handleOutsideClick);
     };
-  }, [isOpen]);
+  }, []);
 
   function handleOutsideClick(e: MouseEvent) {
     if (!wrapperRef.current?.contains(e.target as Node)) {
