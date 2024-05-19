@@ -76,24 +76,6 @@ export type Notes = {
   userId: string;
 };
 
-async function fetchNoted() {
-  const querySnapshot = await getDocs(collection(db, "notesDb"));
-
-  // Create an array to store the fetched data
-  const fetchedNotes: Notes[] = [];
-
-  querySnapshot.forEach((doc) => {
-    fetchedNotes.push({
-      id: doc.id,
-      notes: doc.data().notes,
-      title: doc.data().title,
-      userId: doc.data().userid,
-    });
-  });
-
-  return fetchedNotes;
-}
-
 export const columns: ColumnDef<Notes>[] = [
   {
     id: "select",
@@ -231,6 +213,28 @@ export function DataTableDemo() {
   const router = useRouter();
   const [data, setData] = useState<Notes[]>([]);
   const [isLoading, setIsLoading] = useState<Boolean>(false);
+
+  async function fetchNoted() {
+    const querySnapshot = await getDocs(collection(db, "notesDb"));
+
+    // Create an array to store the fetched data
+    const fetchedNotes: Notes[] = [];
+
+    querySnapshot.forEach((doc) => {
+      if (user) {
+        if (doc.data().userid === user.uid) {
+          fetchedNotes.push({
+            id: doc.id,
+            notes: doc.data().notes,
+            title: doc.data().title,
+            userId: doc.data().userid,
+          });
+        }
+      }
+    });
+
+    return fetchedNotes;
+  }
 
   useEffect(() => {
     async function fetchData() {

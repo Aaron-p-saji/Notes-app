@@ -1,3 +1,4 @@
+import { ActionCenter } from "@/components/global/ActionCenter";
 import { FloatingNav } from "@/components/ui/navbar";
 import React from "react";
 
@@ -17,7 +18,7 @@ const layout = ({ children }: Props) => {
     },
   ];
   return (
-    <div className="pt-[15vh] px-[15vw] w-screen h-screen">
+    <div className="w-screen h-screen">
       <FloatingNav navItems={navItems} />
       {children}
     </div>
