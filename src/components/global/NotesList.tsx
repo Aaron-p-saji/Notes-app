@@ -57,7 +57,17 @@ import { CreateNote } from "./CreateNote";
 import { Textarea } from "../ui/textarea";
 import { auth, db } from "@/providers/firebase-config";
 import { useAuthState } from "react-firebase-hooks/auth";
-import { collection, addDoc, getDocs } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  where,
+  serverTimestamp,
+  deleteDoc,
+  doc,
+  getDoc,
+} from "firebase/firestore";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import {
@@ -76,108 +86,6 @@ export type Notes = {
   userId: string;
 };
 
-export const columns: ColumnDef<Notes>[] = [
-  {
-    id: "select",
-    header: ({ table }) => (
-      <Checkbox
-        checked={
-          table.getIsAllPageRowsSelected() ||
-          (table.getIsSomePageRowsSelected() && "indeterminate")
-        }
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  },
-  {
-    accessorKey: "title",
-    enableHiding: false,
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Title
-          <CaretSortIcon className="ml-2 h-4 w-4" />
-        </Button>
-      );
-    },
-    cell: ({ row }) => <div className="pl-4">{row.getValue("title")}</div>,
-  },
-  {
-    accessorKey: "notes",
-    enableHiding: false,
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Note
-          <CaretSortIcon className="ml-2 h-4 w-4" />
-        </Button>
-      );
-    },
-    cell: ({ row }) => (
-      <Dialog>
-        <DialogTrigger className="pl-4">View</DialogTrigger>
-        <DialogContent>
-          <DialogHeader className="text-center gap-3">
-            <DialogTitle className="text-white text-center ">
-              <span className="font-bold text-lg">Title: </span>
-              {row.getValue("title")}
-            </DialogTitle>
-
-            <DialogDescription className="text-center flex flex-col">
-              <span className="font-bold text-xl text-white underline-offset-4 underline pb-[1vh]">
-                Note
-              </span>
-              {row.getValue("notes")}
-            </DialogDescription>
-          </DialogHeader>
-        </DialogContent>
-      </Dialog>
-    ),
-  },
-  {
-    id: "actions",
-    enableHiding: false,
-    cell: ({ row }) => {
-      const payment = row.original;
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <DotsHorizontalIcon className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem
-              onClick={() => navigator.clipboard.writeText(payment.id)}
-            >
-              Edit
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>Delete</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      );
-    },
-  },
-];
 const createNote = async (
   userid: string,
   title: string,
@@ -189,7 +97,7 @@ const createNote = async (
       userid,
       title,
       notes,
-      createdAt,
+      createdAt: serverTimestamp(),
     });
     return true;
   } catch (error) {
@@ -215,26 +123,162 @@ export function DataTableDemo() {
   const [isLoading, setIsLoading] = useState<Boolean>(false);
 
   async function fetchNoted() {
-    const querySnapshot = await getDocs(collection(db, "notesDb"));
+    if (!user) return []; // Return an empty array if the user is not authenticated
 
-    // Create an array to store the fetched data
+    const notesRef = collection(db, "notesDb");
+    const q = query(notesRef, where("userid", "==", user.uid));
+    const querySnapshot = await getDocs(q);
+
     const fetchedNotes: Notes[] = [];
-
     querySnapshot.forEach((doc) => {
-      if (user) {
-        if (doc.data().userid === user.uid) {
-          fetchedNotes.push({
-            id: doc.id,
-            notes: doc.data().notes,
-            title: doc.data().title,
-            userId: doc.data().userid,
-          });
-        }
-      }
+      fetchedNotes.push({
+        id: doc.id,
+        notes: doc.data().notes,
+        title: doc.data().title,
+        userId: doc.data().userid,
+      });
     });
 
     return fetchedNotes;
   }
+  const DeleteNote = async (noteId: string) => {
+    if (user) {
+      try {
+        const noteRef = doc(db, "notesDb", noteId);
+        const noteSnapshot = await getDoc(noteRef);
+
+        if (!noteSnapshot.exists()) {
+          toast.error("Note not found.");
+          return;
+        }
+
+        const noteData = noteSnapshot.data();
+        if (user.uid !== noteData.userid) {
+          toast.error("You don't have permission to delete this note.");
+          return;
+        }
+
+        await deleteDoc(noteRef);
+        toast.success("Note deleted successfully.");
+        const updatedNotes = await fetchNoted();
+        setData(updatedNotes);
+      } catch (error) {
+        console.error("Error deleting note:", error);
+        toast.error("Failed to delete note.");
+      }
+    } else {
+      toast.error("You need to be logged in to delete notes.");
+    }
+  };
+
+  const columns: ColumnDef<Notes>[] = [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && "indeterminate")
+          }
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
+    {
+      accessorKey: "title",
+      enableHiding: false,
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            Title
+            <CaretSortIcon className="ml-2 h-4 w-4" />
+          </Button>
+        );
+      },
+      cell: ({ row }) => <div className="pl-4">{row.getValue("title")}</div>,
+    },
+    {
+      accessorKey: "notes",
+      enableHiding: false,
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            Note
+            <CaretSortIcon className="ml-2 h-4 w-4" />
+          </Button>
+        );
+      },
+      cell: ({ row }) => (
+        <Dialog>
+          <DialogTrigger className="pl-4">View</DialogTrigger>
+          <DialogContent>
+            <DialogHeader className="text-center gap-3">
+              <DialogTitle className="text-white text-center ">
+                <span className="font-bold text-lg">Title: </span>
+                {row.getValue("title")}
+              </DialogTitle>
+
+              <DialogDescription className="text-center flex flex-col">
+                <span className="font-bold text-xl text-white underline-offset-4 underline pb-[1vh]">
+                  Note
+                </span>
+                {row.getValue("notes")}
+              </DialogDescription>
+            </DialogHeader>
+          </DialogContent>
+        </Dialog>
+      ),
+    },
+    {
+      id: "actions",
+      enableHiding: false,
+      cell: ({ row }) => {
+        const note = row.original;
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <DotsHorizontalIcon className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem
+                onClick={() => navigator.clipboard.writeText(note.notes)}
+              >
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => {
+                  DeleteNote(note.id);
+                }}
+              >
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
+    },
+  ];
 
   useEffect(() => {
     async function fetchData() {
@@ -244,8 +288,16 @@ export function DataTableDemo() {
       setIsLoading(false);
     }
 
-    fetchData();
-  }, []);
+    fetchData(); // Initial fetch on component mount
+
+    // Re-fetch notes whenever the user changes
+    const unsubscribe = auth.onAuthStateChanged(() => {
+      fetchData();
+    });
+
+    // Clean up subscription on unmount
+    return () => unsubscribe();
+  }, [user]);
 
   const table = useReactTable({
     data,
@@ -281,6 +333,8 @@ export function DataTableDemo() {
         setTitle("");
         setNote("");
         toast.success("Note Created Successfully");
+        const updatedNotes = await fetchNoted();
+        setData(updatedNotes);
       } else {
         toast.error("Note Creation Failed");
       }
