@@ -7,22 +7,7 @@ type Props = {
 };
 
 const layout = ({ children }: Props) => {
-  const navItems = [
-    {
-      name: "Home",
-      link: "/home",
-    },
-    {
-      name: "Contact",
-      link: "/contact",
-    },
-  ];
-  return (
-    <div className="w-screen h-screen">
-      <FloatingNav navItems={navItems} />
-      {children}
-    </div>
-  );
+  return <div className="w-screen h-screen">{children}</div>;
 };
 
 export default layout;

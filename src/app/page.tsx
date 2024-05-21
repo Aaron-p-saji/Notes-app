@@ -19,6 +19,7 @@ import { useState } from "react";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/providers/firebase-config";
 import { useRouter } from "next/navigation";
+import { BackgroundBeams } from "@/components/ui/background-beams";
 
 export default function Home() {
   const [user] = useAuthState(auth);
@@ -52,7 +53,8 @@ export default function Home() {
     setIsOpen(true);
   };
   return (
-    <FollowerPointerCard>
+    <>
+      <BackgroundBeams className="z-[-1]" />
       <main className="flex min-h-screen flex-col items-center justify-between p-24">
         <div className="flex flex-col items-center justify-center h-[40rem]  ">
           <p className="text-neutral-800 dark:text-neutral-800 text-xs sm:text-base  ">
@@ -63,7 +65,7 @@ export default function Home() {
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
               <DialogTrigger asChild>
                 <button
-                  className="w-40 h-10 rounded-xl bg-black border dark:border-white border-transparent text-white text-sm"
+                  className="w-40 h-10 rounded-xl bg-black border dark:border-white border-transparent text-white text-sm cursor-pointer"
                   onClick={() => {
                     user ? router.push("/home") : handleOpenDialog("login");
                   }}
@@ -94,6 +96,6 @@ export default function Home() {
           </div>
         </div>
       </main>
-    </FollowerPointerCard>
+    </>
   );
 }

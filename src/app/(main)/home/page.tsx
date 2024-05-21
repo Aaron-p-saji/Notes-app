@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { auth } from "@/providers/firebase-config";
 import { eventNames } from "process";
+import { FloatingNav } from "@/components/ui/navbar";
+import { BackgroundBeams } from "@/components/ui/background-beams";
 
 type Props = {};
 
@@ -81,9 +83,21 @@ const HomePage = (props: Props) => {
       setIsOpen(false);
     }
   }
+  const navItems = [
+    {
+      name: "Home",
+      link: "/home",
+    },
+    {
+      name: "Contact",
+      link: "/contact",
+    },
+  ];
 
   return (
     <>
+      <BackgroundBeams />
+      <FloatingNav navItems={navItems} />
       {isOpen && (
         <div className="absolute w-screen h-screen bg-black/50 z-[999] pt-[15vh] flex justify-center">
           <div className="flex w-fit h-fit" ref={wrapperRef}>

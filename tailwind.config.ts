@@ -5,7 +5,6 @@ const {
   default: flattenColorPalette,
 } = require("tailwindcss/lib/util/flattenColorPalette");
 const config = {
-  // darkMode: ["class"],
   content: [
     "./pages/**/*.{ts,tsx}",
     "./components/**/*.{ts,tsx}",
@@ -14,6 +13,10 @@ const config = {
   ],
   prefix: "",
   theme: {
+    screens: {
+      xs: "300px",
+      ...defaultTheme.screens,
+    },
     container: {
       center: true,
       padding: "2rem",
