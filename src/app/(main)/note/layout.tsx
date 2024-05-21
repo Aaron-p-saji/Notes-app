@@ -5,7 +5,7 @@ type Props = {
   children: React.ReactNode;
 };
 
-const layput = ({ children }: Props) => {
+const Layout = ({ children }: Props) => {
   return (
     <div className="w-full h-full pt-[2vh] px-[2vw]">
       <Topbar />
@@ -14,4 +14,4 @@ const layput = ({ children }: Props) => {
   );
 };
 
-export default layput;
+export default Layout;

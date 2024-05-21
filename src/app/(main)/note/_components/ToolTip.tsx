@@ -1,6 +1,6 @@
 "use client";
 import { type Editor } from "@tiptap/react";
-import React from "react";
+import React, { useState } from "react";
 import {
   Bold,
   Italic,
@@ -10,17 +10,38 @@ import {
   Heading1,
 } from "lucide-react";
 import { Toggle } from "@/components/ui/toggle";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type Props = {
   editor: Editor | null;
 };
 
 const Toolbar = ({ editor }: Props) => {
+  interface FontOption {
+    name: string;
+    fontName: string;
+  }
+  const fontOptions: FontOption[] = [
+    { name: "Inter", fontName: "Inter" },
+    { name: "Comic Sans", fontName: "Comic Sans MS, Comic Sans" },
+    { name: "Serif", fontName: "serif" },
+    { name: "Monospace", fontName: "monospace" },
+  ];
+  const [selectedFont, setSelectedFont] = useState<FontOption>(fontOptions[0]);
+  const handleFontChange = (newFont: FontOption) => {
+    setSelectedFont(newFont);
+  };
   if (!editor) {
     return null;
   }
   return (
-    <div className="border border-input bg-transparent rounded-md p-[0.5vw]">
+    <div className="border border-input bg-transparent rounded-md p-[0.5vw] flex">
       <Toggle
         size="sm"
         pressed={editor.isActive("heading")}
@@ -75,6 +96,31 @@ const Toolbar = ({ editor }: Props) => {
       >
         <ListOrdered className="h-4 w-4" />
       </Toggle>
+      <Select
+        onValueChange={(value) => {
+          editor.chain().focus().setFontFamily(value).run();
+        }}
+        defaultValue={selectedFont.fontName} // Set the default font on load
+      >
+        <SelectTrigger className="w-[10vw]">
+          <SelectValue placeholder={selectedFont.name} />
+        </SelectTrigger>
+        <SelectContent>
+          {fontOptions.map((data, index) => (
+            <SelectItem
+              key={index}
+              value={data.fontName}
+              className={
+                editor.isActive("textStyle", { fontFamily: data.fontName })
+                  ? "is-active"
+                  : ""
+              }
+            >
+              {data.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 };

@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Form,
   FormControl,
@@ -15,17 +15,20 @@ import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { Input } from "@/components/ui/input";
 import { v4 as uuidv4 } from "uuid";
-import Tiptap from "../_components/Tiptap";
+import Tiptap, { Notes } from "../_components/Tiptap";
 import InputTag from "../_components/InputTag";
+import { useRouter } from "next/navigation";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/providers/firebase-config";
 
 type Props = {};
 
-const NoteEditor = (props: Props) => {
+const NoteEditor = ({ params }: { params: { noteId: string } }) => {
+  const router = useRouter();
   const [fileName, setFileName] = useState<string>("");
   const [content, setContent] = useState("");
-  const handleContentChange = (reason: any) => {
-    setContent(reason);
-  };
+  const [isLoading, setIsLoading] = useState(true); // Add loading state
+
   const formSchema = z.object({
     title: z
       .string()
@@ -47,21 +50,7 @@ const NoteEditor = (props: Props) => {
       description: "",
     },
   });
-  const handleSubmit = (e: any) => {
-    e.preventDefault();
-    const data = {
-      id: uuidv4(),
-      content: content,
-    };
-    console.log(data);
-    const existingDataString = localStorage.getItem("myData");
-    const existingData = existingDataString
-      ? JSON.parse(existingDataString)
-      : [];
-    const updatedData = [...existingData, data];
-    localStorage.setItem("myData", JSON.stringify(updatedData));
-    setContent("");
-  };
+
   const { register } = useForm();
 
   const handleInputChange = (e: any) => {
@@ -69,12 +58,40 @@ const NoteEditor = (props: Props) => {
     register("fileName").onChange(e); // Trigger react-hook-form's onChange
   };
 
-  const formOnSubmit = (value: z.infer<typeof formSchema>) => {};
+  useEffect(() => {
+    const fetchNoteData = async () => {
+      try {
+        const docRef = doc(db, "notesDb", params.noteId);
+        const docSnap = await getDoc(docRef); // Fetch document
+
+        if (docSnap.exists()) {
+          const data = docSnap.data() as Notes;
+          setFileName(data.title); // Set title in InputTag
+          setContent(data.notes); // Set content in Tiptap
+        } else {
+          console.log("No such document!");
+        }
+      } catch (error) {
+        console.error("Error fetching document: ", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchNoteData();
+  }, [params.noteId]);
+  const handleContentChange = (reason: any) => {
+    setContent(reason);
+  };
+
+  if (isLoading) {
+    return <div>Loading...</div>; // Show loading state
+  }
 
   return (
     <main>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(formOnSubmit)}>
+        <form>
           <FormField
             control={form.control}
             name="title"
@@ -99,20 +116,18 @@ const NoteEditor = (props: Props) => {
               render={({ field }) => (
                 <FormItem className="p-0">
                   <FormControl>
-                    <Tiptap content={field.name} onChange={field.onChange} />
+                    <Tiptap
+                      content={content}
+                      onChange={handleContentChange}
+                      docId={params.noteId}
+                      title={fileName}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
           </div>
-
-          <button
-            className="w-40 h-10 rounded-xl bg-black border dark:border-white border-transparent text-white text-sm cursor-pointer"
-            type="submit"
-          >
-            Save
-          </button>
         </form>
       </Form>
     </main>
